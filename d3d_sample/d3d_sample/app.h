@@ -16,7 +16,7 @@ public :
 
 private:
 	/* private variables */
-	static const uint32_t FrameCount = 2; // frame buffer count
+	static const uint32_t FrameCount = 2; // double buffering
 
 	HINSTANCE m_hInst;
 	HWND m_hWnd;

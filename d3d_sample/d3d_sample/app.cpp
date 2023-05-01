@@ -1,4 +1,5 @@
 #include "app.h"
+#include "assert.h"
 
 namespace {
 	const auto ClassName = TEXT("SampleWindowClass");
@@ -27,6 +28,14 @@ bool App::InitApp() {
 		return false;
 	}
 	return true;
+}
+
+template<typename T>
+void SafeRelease(T*& ptr) {
+	if (ptr != nullptr) {
+		ptr->Release();
+		ptr = nullptr;
+	}
 }
 
 bool App::InitWnd() {
@@ -160,7 +169,8 @@ bool App::InitD3D()
 		}
 	}
 
-	// create swap chain
+
+	// setting for swap-chain
 	{
 		// create DXGI factory
 		IDXGIFactory4* pFactory = nullptr;
@@ -168,10 +178,6 @@ bool App::InitD3D()
 		if (FAILED(hr)) {
 			return false;
 		}
-	}
-
-	// setting for swap-chain
-	{
 		DXGI_SWAP_CHAIN_DESC desc = {};
 		desc.BufferDesc.Width = m_Width;
 		desc.BufferDesc.Height = m_Height;
@@ -196,5 +202,233 @@ bool App::InitD3D()
 			SafeRelease(pFactory);
 			return false;
 		}
+		// get IDXGISwapChain3
+		hr = pSwapChain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
+		if (FAILED(hr)) {
+			SafeRelease(pFactory);
+			SafeRelease(pFactory);
+			return false;
+		}
+
+		// get back-buffer index
+		m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+		SafeRelease(pFactory);
+		SafeRelease(pSwapChain);
+
 	}
+
+	
+
+	// create command allocator
+	{
+		for (auto i = 0u; i < FrameCount; ++i) {
+			hr = m_pDevice->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(&m_pCmdAllocator[i])
+			);
+			if (FAILED(hr)) {
+				return false;
+			}
+		}
+	}
+
+
+	// create command list
+	hr = m_pDevice->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		m_pCmdAllocator[m_FrameIndex],
+		nullptr,
+		IID_PPV_ARGS(&m_pCmdList)
+	);
+	if (FAILED(hr)) {
+		return false;
+	}
+
+	// setting for descriptor heap
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.NumDescriptors = FrameCount;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	desc.NodeMask = 0;
+
+	// create descriptor heap
+	hr = m_pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&m_pHeapRTV));
+	if (FAILED(hr)) {
+		return false;
+	}
+
+
+	auto handle = m_pHeapRTV->GetCPUDescriptorHandleForHeapStart();
+	auto incrementSize = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	for (auto i = 0u; i < FrameCount; ++i) {
+		hr = m_pSwapChain->GetBuffer(i, IID_PPV_ARGS(&m_pColorBuffer[i]));
+		if (FAILED(hr)) return false;
+
+		D3D12_RENDER_TARGET_VIEW_DESC viewDesc = {};
+		viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		viewDesc.Texture2D.MipSlice = 0;
+		viewDesc.Texture2D.PlaneSlice = 0;
+
+		// create render-target-view
+		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i], &viewDesc, handle);
+
+		m_HandleRTV[i] = handle;
+		handle.ptr += incrementSize;
+	}
+
+
+	// create fence
+	{
+		/* CPUÇ∆GPUÇÃìØä˙É^ÉCÉ~ÉìÉOÇèàóùÇ∑ÇÈ */
+		for (auto i = 0u; i < FrameCount; ++i) {
+			m_FenceCounter[i] = 0;
+		}
+		// create fence
+		hr = m_pDevice->CreateFence(
+			m_FenceCounter[m_FrameIndex],
+			D3D12_FENCE_FLAG_NONE,
+			IID_PPV_ARGS(&m_pFence)
+		);
+		if (FAILED(hr)) return false;
+
+		// create event
+		m_FenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+		if (m_FenceEvent == nullptr) return false;
+	}
+	// close command-list
+	m_pCmdList->Close();
+	return true;
+}
+
+/* ï`âÊèàóù */
+void App::Render() {
+	// start record command
+	m_pCmdAllocator[m_FrameIndex]->Reset();
+	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex], nullptr);
+
+	// setting resource barrier
+	D3D12_RESOURCE_BARRIER barrier = {};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	// resource barrier
+	m_pCmdList->ResourceBarrier(1, &barrier);
+
+	// setting render-get
+	m_pCmdList->OMSetRenderTargets(1, &m_HandleRTV[m_FrameIndex], FALSE, nullptr);
+
+	// setting clear-color
+	float clearColor[] = { 0.25f, 0.25f, 0.25f, 1.0f };
+
+	// clear render-target-view
+	m_pCmdList->ClearRenderTargetView(m_HandleRTV[m_FrameIndex], clearColor, 0, nullptr);
+
+	// ï`âÊèàóù
+	{
+		// ToDo : É|ÉäÉSÉìï`âÊópÇÃèàóùÇí«â¡
+	}
+
+	// setting resource-barrier
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	// resource-barrier
+	m_pCmdList->ResourceBarrier(1, &barrier);
+
+	// close record command
+	m_pCmdList->Close();
+
+	// execute command
+	ID3D12CommandList* ppCmdLists[] = { m_pCmdList };
+	m_pQueue->ExecuteCommandLists(1, ppCmdLists);
+
+	// display
+	Present(1);
+}
+
+/* display and prepare for next frame */
+void App::Present(uint32_t interval) {
+	// display on screen
+	m_pSwapChain->Present(interval, 0);
+
+	// signal
+	const auto currentValue = m_FenceCounter[m_FrameIndex];
+	m_pQueue->Signal(m_pFence, currentValue);
+
+	// backbuffer-index
+	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
+	// wait preparing for next frame
+	if (m_pFence->GetCompletedValue() < m_FenceCounter[m_FrameIndex]){
+		m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
+		WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+	}
+
+	// increment fence-counter
+	m_FenceCounter[m_FrameIndex] = currentValue + 1;
+}
+
+/* wait complete GPU*/
+void App::WaitGpu() {
+	assert(m_pQueue != nullptr);
+	assert(m_pFence != nullptr);
+	assert(m_FenceEvent != nullptr);
+
+	// signal
+	m_pQueue->Signal(m_pFence, m_FenceCounter[m_FrameIndex]);
+
+	// set event when completed
+	m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
+
+	// wait
+	WaitForSingleObjectEx(m_FenceEvent, INFINITE, FALSE);
+
+	// increment counter
+	m_FenceCounter[m_FrameIndex]++;
+}
+
+/* terminate d3d */
+void App::TermD3D() {
+	// wait complete GPU
+	WaitGpu();
+
+	if (m_FenceEvent != nullptr) {
+		CloseHandle(m_FenceEvent);
+		m_FenceEvent = nullptr;
+	}
+
+	// term fence
+	SafeRelease(m_pFence);
+
+	// term render-target-view
+	SafeRelease(m_pHeapRTV);
+	for (auto i = 0u; i < FrameCount; ++i) {
+		SafeRelease(m_pColorBuffer[i]);
+	}
+
+	// term command-list
+	SafeRelease(m_pCmdList);
+
+	// term command-allocator
+	for (auto i = 0u; i < FrameCount; ++i) SafeRelease(m_pCmdAllocator[i]);
+
+	// term swap-chain
+	SafeRelease(m_pSwapChain);
+	
+	// term command-queue
+	SafeRelease(m_pQueue);
+
+	// term device
+	SafeRelease(m_pDevice);
 }
