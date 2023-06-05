@@ -145,11 +145,22 @@ void App::TermWnd()
 // initialize d3d
 bool App::InitD3D()
 {
+	// debug flag
+	#if defined(DEBUG) || defined(_DEBUG)
+	{
+		ComPtr<ID3D12Debug> debug;
+		auto hr = D3D12GetDebugInterface(IID_PPV_ARGS(debug.GetAddressOf()));
+
+		// activate debug layer
+		if (SUCCEEDED(hr)) debug->EnableDebugLayer();
+
+	}
+	#endif
 	// create device
 	auto hr = D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(&m_pDevice)
+		IID_PPV_ARGS(m_pDevice.GetAddressOf())
 	);
 	if (FAILED(hr)) {
 		return false;
@@ -163,7 +174,7 @@ bool App::InitD3D()
 		desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 		desc.NodeMask = 0;
 
-		hr = m_pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&m_pQueue));
+		hr = m_pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(m_pQueue.GetAddressOf()));
 		if (FAILED(hr)) {
 			return false;
 		}
@@ -197,7 +208,7 @@ bool App::InitD3D()
 
 		// create swap-chain
 		IDXGISwapChain* pSwapChain = nullptr;
-		hr = pFactory->CreateSwapChain(m_pQueue, &desc, &pSwapChain);
+		hr = pFactory->CreateSwapChain(m_pQueue.Get(), &desc, &pSwapChain);
 		if (FAILED(hr)) {
 			SafeRelease(pFactory);
 			return false;
@@ -237,7 +248,7 @@ bool App::InitD3D()
 	hr = m_pDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		m_pCmdAllocator[m_FrameIndex],
+		m_pCmdAllocator[m_FrameIndex].Get(),
 		nullptr,
 		IID_PPV_ARGS(&m_pCmdList)
 	);
@@ -273,7 +284,7 @@ bool App::InitD3D()
 		viewDesc.Texture2D.PlaneSlice = 0;
 
 		// create render-target-view
-		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i], &viewDesc, handle);
+		m_pDevice->CreateRenderTargetView(m_pColorBuffer[i].Get(), &viewDesc, handle);
 
 		m_HandleRTV[i] = handle;
 		handle.ptr += incrementSize;
@@ -307,13 +318,13 @@ bool App::InitD3D()
 void App::Render() {
 	// start record command
 	m_pCmdAllocator[m_FrameIndex]->Reset();
-	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex], nullptr);
+	m_pCmdList->Reset(m_pCmdAllocator[m_FrameIndex].Get(), nullptr);
 
 	// setting resource barrier
 	D3D12_RESOURCE_BARRIER barrier = {};
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -338,7 +349,7 @@ void App::Render() {
 	// setting resource-barrier
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex];
+	barrier.Transition.pResource = m_pColorBuffer[m_FrameIndex].Get();
 	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -350,7 +361,7 @@ void App::Render() {
 	m_pCmdList->Close();
 
 	// execute command
-	ID3D12CommandList* ppCmdLists[] = { m_pCmdList };
+	ID3D12CommandList* ppCmdLists[] = { m_pCmdList.Get() };
 	m_pQueue->ExecuteCommandLists(1, ppCmdLists);
 
 	// display
@@ -364,7 +375,7 @@ void App::Present(uint32_t interval) {
 
 	// signal
 	const auto currentValue = m_FenceCounter[m_FrameIndex];
-	m_pQueue->Signal(m_pFence, currentValue);
+	m_pQueue->Signal(m_pFence.Get(), currentValue);
 
 	// backbuffer-index
 	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
@@ -386,7 +397,7 @@ void App::WaitGpu() {
 	assert(m_FenceEvent != nullptr);
 
 	// signal
-	m_pQueue->Signal(m_pFence, m_FenceCounter[m_FrameIndex]);
+	m_pQueue->Signal(m_pFence.Get(), m_FenceCounter[m_FrameIndex]);
 
 	// set event when completed
 	m_pFence->SetEventOnCompletion(m_FenceCounter[m_FrameIndex], m_FenceEvent);
@@ -409,26 +420,26 @@ void App::TermD3D() {
 	}
 
 	// term fence
-	SafeRelease(m_pFence);
+	m_pFence.Reset();
 
 	// term render-target-view
-	SafeRelease(m_pHeapRTV);
+	m_pHeapRTV.Reset();
 	for (auto i = 0u; i < FrameCount; ++i) {
-		SafeRelease(m_pColorBuffer[i]);
+		m_pColorBuffer[i].Reset();
 	}
 
 	// term command-list
-	SafeRelease(m_pCmdList);
+	m_pCmdList.Reset();
 
 	// term command-allocator
-	for (auto i = 0u; i < FrameCount; ++i) SafeRelease(m_pCmdAllocator[i]);
+	for (auto i = 0u; i < FrameCount; ++i) m_pCmdAllocator[i].Reset();
 
 	// term swap-chain
-	SafeRelease(m_pSwapChain);
+	m_pSwapChain.Reset();
 	
 	// term command-queue
-	SafeRelease(m_pQueue);
+	m_pQueue.Reset();
 
 	// term device
-	SafeRelease(m_pDevice);
+	m_pDevice.Reset();
 }
