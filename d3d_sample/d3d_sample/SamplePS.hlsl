@@ -9,7 +9,7 @@ struct PSOutput
 	float4 Color : SV_TARGET0;
 };
 
-PSOutput main(VSOutput input) {
+PSOutput main(VSOutput input) : SV_TARGET {
 	PSOutput output = (PSOutput)0;
 	output.Color = input.Color;
 	return output;
