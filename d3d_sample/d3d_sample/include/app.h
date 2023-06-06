@@ -83,6 +83,7 @@ private:
 	void TermWnd();
 	void MainLoop();
 	bool OnInit();
+	void OnTerm();
 
 	// methods for d3d
 	bool InitD3D();
