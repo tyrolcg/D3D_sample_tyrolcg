@@ -82,8 +82,9 @@ private:
 	bool InitWnd();
 	void TermWnd();
 	void MainLoop();
-	bool OnInit();
-	void OnTerm();
+	void DrawPerFrame();
+
+
 
 	// methods for d3d
 	bool InitD3D();
@@ -91,6 +92,8 @@ private:
 	void Render();
 	void WaitGpu();
 	void Present(uint32_t interval);
+	bool OnInit();
+	void OnTerm();
 
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);

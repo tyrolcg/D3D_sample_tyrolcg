@@ -664,9 +664,7 @@ void App::Render() {
 	
 	// XV
 	{
-		m_RotateAngle += 0.025f;
-		m_CBV[m_FrameIndex].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle);
-		m_CBV[m_FrameIndex].pBuffer->World *= DirectX::XMMatrixRotationX(m_RotateAngle);
+		DrawPerFrame();
 	}
 
 	// start record command
