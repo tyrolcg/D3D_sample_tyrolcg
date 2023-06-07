@@ -332,6 +332,7 @@ bool App::OnInit() {
 			elements[0].SemanticIndex = 0;
 			elements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
 			elements[0].InputSlot = 0;
+			elements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 			elements[0].InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 			elements[0].InstanceDataStepRate = 0;
 
@@ -665,6 +666,7 @@ void App::Render() {
 	{
 		m_RotateAngle += 0.025f;
 		m_CBV[m_FrameIndex].pBuffer->World = DirectX::XMMatrixRotationY(m_RotateAngle);
+		m_CBV[m_FrameIndex].pBuffer->World *= DirectX::XMMatrixRotationX(m_RotateAngle);
 	}
 
 	// start record command
@@ -683,7 +685,7 @@ void App::Render() {
 	// resource barrier
 	m_pCmdList->ResourceBarrier(1, &barrier);
 
-	// setting render-get
+	// setting render-target
 	m_pCmdList->OMSetRenderTargets(1, &m_HandleRTV[m_FrameIndex], FALSE, nullptr);
 
 	// setting clear-color
