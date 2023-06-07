@@ -687,7 +687,7 @@ void App::Render() {
 	m_pCmdList->OMSetRenderTargets(1, &m_HandleRTV[m_FrameIndex], FALSE, nullptr);
 
 	// setting clear-color
-	float clearColor[] = { 0.25f, 0.25f, 0.25f, 1.0f };
+	float clearColor[] = { 0.15f, 0.25f, 0.25f, 1.0f };
 
 	// clear render-target-view
 	m_pCmdList->ClearRenderTargetView(m_HandleRTV[m_FrameIndex], clearColor, 0, nullptr);
@@ -735,12 +735,14 @@ void App::Present(uint32_t interval) {
 	// display on screen
 	m_pSwapChain->Present(interval, 0);
 
+	// backbuffer-index
+	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+
 	// signal
 	const auto currentValue = m_FenceCounter[m_FrameIndex];
 	m_pQueue->Signal(m_pFence.Get(), currentValue);
 
-	// backbuffer-index
-	m_FrameIndex = m_pSwapChain->GetCurrentBackBufferIndex();
+	
 
 	// wait preparing for next frame
 	if (m_pFence->GetCompletedValue() < m_FenceCounter[m_FrameIndex]){
