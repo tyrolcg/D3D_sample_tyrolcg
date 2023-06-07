@@ -498,6 +498,7 @@ bool App::InitD3D()
 	}
 	#endif
 	// create device
+	// 第一引数をAdaptorを使って初期化すると,GPUの情報にアクセスできてお得
 	auto hr = D3D12CreateDevice(
 		nullptr,
 		D3D_FEATURE_LEVEL_11_0,
@@ -549,7 +550,9 @@ bool App::InitD3D()
 
 		// create swap-chain
 		IDXGISwapChain* pSwapChain = nullptr;
+		/* CreateSwapChainによってVRAM上にフレームバッファの領域が確保される */
 		hr = pFactory->CreateSwapChain(m_pQueue.Get(), &desc, &pSwapChain);
+		//hr = pFactory->CreateSwapChainForComposition(m_pQueue.Get(), &desc, &pSwapChain);
 
 		if (FAILED(hr)) {
 			SafeRelease(pFactory);
@@ -559,7 +562,7 @@ bool App::InitD3D()
 		hr = pSwapChain->QueryInterface(IID_PPV_ARGS(&m_pSwapChain));
 		if (FAILED(hr)) {
 			SafeRelease(pFactory);
-			SafeRelease(pFactory);
+			SafeRelease(pFactory); //?
 			return false;
 		}
 
@@ -727,6 +730,7 @@ void App::Render() {
 	m_pQueue->ExecuteCommandLists(1, ppCmdLists);
 
 	// display
+	/* IDXGISwapChain::Present */
 	Present(1);
 }
 
