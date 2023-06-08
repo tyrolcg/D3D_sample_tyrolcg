@@ -1,2 +1,9 @@
-﻿  myDraw.cpp
-  d3d_sample.vcxproj -> C:\Users\yuu\Documents\GitHub\D3D_sample_tyrolcg\d3d_sample\x64\Debug\d3d_sample.exe
+﻿C:\Users\yuyu1\Documents\GitHub\D3D_sample_tyrolcg\d3d_sample\d3d_sample\SamplePS.hlsl(12,13-41): warning X3576: semantics in type overridden by variable/function or enclosing type
+  
+  compilation object save succeeded; see C:\Users\yuyu1\Documents\GitHub\D3D_sample_tyrolcg\d3d_sample\x64\Debug\SamplePS.cso
+  compilation object save succeeded; see C:\Users\yuyu1\Documents\GitHub\D3D_sample_tyrolcg\d3d_sample\x64\Debug\SampleVS.cso
+  myDraw.cpp
+  app.cpp
+  main.cpp
+  コードを生成中...
+  d3d_sample.vcxproj -> C:\Users\yuyu1\Documents\GitHub\D3D_sample_tyrolcg\d3d_sample\x64\Debug\d3d_sample.exe
