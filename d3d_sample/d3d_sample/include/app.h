@@ -63,6 +63,12 @@ private:
 	ComPtr<ID3D12Resource> m_pCB[FrameCount]; // constant buffer
 	ComPtr<ID3D12RootSignature> m_pRootSignature; // root signature
 	ComPtr<ID3D12PipelineState> m_pPSO; // pipeline state
+	ComPtr<ID3D12Resource> m_pIB; //index buffer
+
+	ComPtr<ID3D12Resource> m_pDepthBuffer; // depth buffer
+	ComPtr<ID3D12DescriptorHeap> m_pHeapDSV; // descriptor heap for depth
+	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleDSV;
+
 
 	HANDLE m_FenceEvent;
 	uint64_t m_FenceCounter[FrameCount];
@@ -70,6 +76,7 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE m_HandleRTV[FrameCount];
 
 	D3D12_VERTEX_BUFFER_VIEW m_VBV; // vertex buffer view
+	D3D12_INDEX_BUFFER_VIEW m_IBV; // index buffer view
 	D3D12_VIEWPORT m_Viewport; // viewport
 	D3D12_RECT m_Scissor; // scissor rect
 	
