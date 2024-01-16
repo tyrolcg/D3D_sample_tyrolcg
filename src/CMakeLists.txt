@@ -1,0 +1,1 @@
+add_executable(d3d_sample main.cpp app.cpp)

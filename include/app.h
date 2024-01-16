@@ -1,10 +1,10 @@
 #pragma once
-#include <Windows.h>
+#include <windows.h>
 #include <cstdint>
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include<wrl/client.h>
-#include<DirectXMath.h>
+#include<directxmath.h>
 #include <d3dcompiler.h>
 #
 //-----------------------
@@ -46,7 +46,7 @@ private:
 		D3D12_CONSTANT_BUFFER_VIEW_DESC Desc;
 		D3D12_CPU_DESCRIPTOR_HANDLE HandleCPU;
 		D3D12_GPU_DESCRIPTOR_HANDLE HandleGPU;
-		T* pBuffer; // ƒoƒbƒtƒ@æ“ª‚Ö‚Ìƒ|ƒCƒ“ƒ^
+		T* pBuffer; // ï¿½oï¿½bï¿½tï¿½@ï¿½æ“ªï¿½Ö‚Ìƒ|ï¿½Cï¿½ï¿½ï¿½^
 	};
 	// variables for d3d
 	ComPtr<ID3D12Device> m_pDevice;
